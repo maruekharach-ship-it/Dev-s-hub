@@ -1,0 +1,281 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- GUI Setup
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "UltimateHubGUI"
+ScreenGui.Parent = game:GetService("CoreGui") or LocalPlayer:WaitForChild("PlayerGui")
+ScreenGui.ResetOnSpawn = false
+
+-- Open UI Button
+local OpenUIBtn = Instance.new("TextButton", ScreenGui)
+OpenUIBtn.Name = "OpenUIBtn"
+OpenUIBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
+OpenUIBtn.Position = UDim2.new(0, 10, 0.5, -20)
+OpenUIBtn.Size = UDim2.new(0, 80, 0, 35)
+OpenUIBtn.Font = Enum.Font.SourceSansBold
+OpenUIBtn.Text = "เปิด Menu"
+OpenUIBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+OpenUIBtn.TextSize = 14
+OpenUIBtn.Visible = false
+Instance.new("UICorner", OpenUIBtn).CornerRadius = UDim.new(0, 6)
+
+-- Main Frame (Scrolling)
+local MainFrame = Instance.new("Frame", ScreenGui)
+MainFrame.Name = "MainFrame"
+MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+MainFrame.Position = UDim2.new(0.5, -120, 0.25, 0)
+MainFrame.Size = UDim2.new(0, 240, 0, 340)
+MainFrame.Active = true
+MainFrame.Draggable = true
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 8)
+
+local Title = Instance.new("TextLabel", MainFrame)
+Title.Size = UDim2.new(1, -40, 0, 35)
+Title.Position = UDim2.new(0, 10, 0, 0)
+Title.BackgroundTransparency = 1
+Title.Font = Enum.Font.SourceSansBold
+Title.Text = "Ultimate Control Hub"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextSize = 16
+Title.TextXAlignment = Enum.TextXAlignment.Left
+
+local CloseBtn = Instance.new("TextButton", MainFrame)
+CloseBtn.Size = UDim2.new(0, 25, 0, 25)
+CloseBtn.Position = UDim2.new(1, -30, 0, 5)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+CloseBtn.Font = Enum.Font.SourceSansBold
+CloseBtn.Text = "X"
+CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseBtn.TextSize = 14
+Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 6)
+
+-- Scroll Frame
+local Scroll = Instance.new("ScrollingFrame", MainFrame)
+Scroll.Size = UDim2.new(1, -10, 1, -45)
+Scroll.Position = UDim2.new(0, 5, 0, 40)
+Scroll.BackgroundTransparency = 1
+Scroll.ScrollBarThickness = 4
+Scroll.CanvasSize = UDim2.new(0, 0, 0, 480)
+
+local UIList = Instance.new("UIListLayout", Scroll)
+UIList.SortOrder = Enum.SortOrder.LayoutOrder
+UIList.Padding = UDim.new(0, 6)
+
+-- Helper Helper Function
+local function createButton(text)
+    local btn = Instance.new("TextButton", Scroll)
+    btn.Size = UDim2.new(0.96, 0, 0, 32)
+    btn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
+    btn.Font = Enum.Font.SourceSansBold
+    btn.Text = text
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.TextSize = 14
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+    return btn
+end
+
+local function createInput(placeholder, defaultText)
+    local box = Instance.new("TextBox", Scroll)
+    box.Size = UDim2.new(0.96, 0, 0, 28)
+    box.BackgroundColor3 = Color3.fromRGB(35, 35, 42)
+    box.Font = Enum.Font.SourceSans
+    box.PlaceholderText = placeholder
+    box.Text = defaultText
+    box.TextColor3 = Color3.fromRGB(255, 255, 255)
+    box.PlaceholderColor3 = Color3.fromRGB(150, 150, 150)
+    box.TextSize = 13
+    Instance.new("UICorner", box).CornerRadius = UDim.new(0, 6)
+    return box
+end
+
+-- UI Controls Toggle
+CloseBtn.MouseButton1Click:Connect(function()
+    MainFrame.Visible = false
+    OpenUIBtn.Visible = true
+end)
+OpenUIBtn.MouseButton1Click:Connect(function()
+    MainFrame.Visible = true
+    OpenUIBtn.Visible = false
+end)
+
+---------------------------------------------------------
+-- 1. หยุดเวลา (Time Stop)
+---------------------------------------------------------
+local TimeStopBtn = createButton("หยุดเวลา : OFF")
+local isTimeStopped = false
+
+TimeStopBtn.MouseButton1Click:Connect(function()
+    isTimeStopped = not isTimeStopped
+    TimeStopBtn.Text = isTimeStopped and "หยุดเวลา : ON" or "หยุดเวลา : OFF"
+    TimeStopBtn.BackgroundColor3 = isTimeStopped and Color3.fromRGB(40, 180, 40) or Color3.fromRGB(180, 40, 40)
+    
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if obj:IsA("Humanoid") and obj.Parent ~= LocalPlayer.Character then
+            local root = obj.Parent:FindFirstChild("HumanoidRootPart")
+            if root then root.Anchored = isTimeStopped end
+        end
+    end
+end)
+
+---------------------------------------------------------
+-- 2. TPWalk
+---------------------------------------------------------
+local TPWalkBtn = createButton("TPWalk : OFF")
+local SpeedInput = createInput("ความเร็ว TPWalk (เช่น 2.5)", "2.5")
+local tpWalkEnabled = false
+local tpWalkSpeed = 2.5
+local tpWalkConn = nil
+
+SpeedInput.FocusLost:Connect(function()
+    tpWalkSpeed = tonumber(SpeedInput.Text) or tpWalkSpeed
+    SpeedInput.Text = tostring(tpWalkSpeed)
+end)
+
+TPWalkBtn.MouseButton1Click:Connect(function()
+    tpWalkEnabled = not tpWalkEnabled
+    TPWalkBtn.Text = tpWalkEnabled and "TPWalk : ON" or "TPWalk : OFF"
+    TPWalkBtn.BackgroundColor3 = tpWalkEnabled and Color3.fromRGB(40, 180, 40) or Color3.fromRGB(180, 40, 40)
+    
+    if tpWalkEnabled then
+        tpWalkConn = RunService.Heartbeat:Connect(function()
+            local char = LocalPlayer.Character
+            if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") then
+                local hum = char.Humanoid
+                local hrp = char.HumanoidRootPart
+                if hum.MoveDirection.Magnitude > 0 then
+                    hrp.CFrame = hrp.CFrame + (hum.MoveDirection * tpWalkSpeed)
+                end
+            end
+        end)
+    elseif tpWalkConn then
+        tpWalkConn:Disconnect()
+        tpWalkConn = nil
+    end
+end)
+
+---------------------------------------------------------
+-- 3. กระโดดไม่จำกัด (Inf Jump) & กระโดดสูง (High Jump)
+---------------------------------------------------------
+local InfJumpBtn = createButton("กระโดดไม่จำกัด : OFF")
+local HighJumpBtn = createButton("กระโดดสูง : OFF")
+local JumpPowerInput = createInput("กำลังกระโดด (ปกติ 50)", "100")
+
+local infJumpEnabled = false
+local highJumpEnabled = false
+local jumpPowerVal = 100
+
+JumpPowerInput.FocusLost:Connect(function()
+    jumpPowerVal = tonumber(JumpPowerInput.Text) or jumpPowerVal
+    JumpPowerInput.Text = tostring(jumpPowerVal)
+    if highJumpEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        LocalPlayer.Character.Humanoid.JumpPower = jumpPowerVal
+    end
+end)
+
+InfJumpBtn.MouseButton1Click:Connect(function()
+    infJumpEnabled = not infJumpEnabled
+    InfJumpBtn.Text = infJumpEnabled and "กระโดดไม่จำกัด : ON" or "กระโดดไม่จำกัด : OFF"
+    InfJumpBtn.BackgroundColor3 = infJumpEnabled and Color3.fromRGB(40, 180, 40) or Color3.fromRGB(180, 40, 40)
+end)
+
+UserInputService.JumpRequest:Connect(function()
+    if infJumpEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        LocalPlayer.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+    end
+end)
+
+HighJumpBtn.MouseButton1Click:Connect(function()
+    highJumpEnabled = not highJumpEnabled
+    HighJumpBtn.Text = highJumpEnabled and "กระโดดสูง : ON" or "กระโดดสูง : OFF"
+    HighJumpBtn.BackgroundColor3 = highJumpEnabled and Color3.fromRGB(40, 180, 40) or Color3.fromRGB(180, 40, 40)
+    
+    local char = LocalPlayer.Character
+    if char and char:FindFirstChild("Humanoid") then
+        char.Humanoid.UseJumpPower = true
+        char.Humanoid.JumpPower = highJumpEnabled and jumpPowerVal or 50
+    end
+end)
+
+---------------------------------------------------------
+-- 4. ระบบ Aimbot (ล็อคหัว/ตัว + ขยาย FOV)
+---------------------------------------------------------
+local AimbotBtn = createButton("Aimbot : OFF")
+local TargetPartBtn = createButton("เป้าหมาย : Head")
+local FOVInput = createInput("ขนาดวง FOV (เช่น 150)", "150")
+
+local aimbotEnabled = false
+local targetPart = "Head" -- "Head" หรือ "HumanoidRootPart"
+local fovRadius = 150
+
+-- สร้างวงกลม FOV
+local FOVCircle = Drawing.new("Circle")
+FOVCircle.Thickness = 1.5
+FOVCircle.Color = Color3.fromRGB(255, 255, 255)
+FOVCircle.Filled = false
+FOVCircle.Transparency = 1
+FOVCircle.Visible = false
+FOVCircle.Radius = fovRadius
+
+TargetPartBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+TargetPartBtn.MouseButton1Click:Connect(function()
+    if targetPart == "Head" then
+        targetPart = "HumanoidRootPart"
+        TargetPartBtn.Text = "เป้าหมาย : HumanoidRootPart (ตัว)"
+    else
+        targetPart = "Head"
+        TargetPartBtn.Text = "เป้าหมาย : Head (หัว)"
+    end
+end)
+
+FOVInput.FocusLost:Connect(function()
+    fovRadius = tonumber(FOVInput.Text) or fovRadius
+    FOVInput.Text = tostring(fovRadius)
+    FOVCircle.Radius = fovRadius
+end)
+
+AimbotBtn.MouseButton1Click:Connect(function()
+    aimbotEnabled = not aimbotEnabled
+    AimbotBtn.Text = aimbotEnabled and "Aimbot : ON" or "Aimbot : OFF"
+    AimbotBtn.BackgroundColor3 = aimbotEnabled and Color3.fromRGB(40, 180, 40) or Color3.fromRGB(180, 40, 40)
+    FOVCircle.Visible = aimbotEnabled
+end)
+
+-- ฟังก์ชันหาเป้าหมายที่ใกล้เมาส์ที่สุด
+local function getClosestPlayer()
+    local closestPlayer = nil
+    local shortestDistance = fovRadius
+    local mousePos = UserInputService:GetMouseLocation()
+
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild(targetPart) and player.Character:FindFirstChild("Humanoid") then
+            if player.Character.Humanoid.Health > 0 then
+                local partPos, onScreen = Camera:WorldToViewportPoint(player.Character[targetPart].Position)
+                if onScreen then
+                    local magnitude = (Vector2.new(partPos.X, partPos.Y) - mousePos).Magnitude
+                    if magnitude < shortestDistance then
+                        closestPlayer = player.Character[targetPart]
+                        shortestDistance = magnitude
+                    end
+                end
+            end
+        end
+    end
+    return closestPlayer
+end
+
+-- Loop Aimbot
+RunService.RenderStepped:Connect(function()
+    local mousePos = UserInputService:GetMouseLocation()
+    FOVCircle.Position = mousePos
+
+    if aimbotEnabled then
+        local target = getClosestPlayer()
+        if target then
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Position)
+        end
+    end
+end)
